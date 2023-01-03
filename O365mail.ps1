@@ -3,8 +3,8 @@ Function ConnectTo-Exchange () {
         try{
 
             #If want to save creds without having to enter password into Get-Credential every time
-            $password = "Sophia@0673" | ConvertTo-SecureString -asPlainText -Force
-            $username = "anhle@coeld.org" 
+            $password = "S..." | ConvertTo-SecureString -asPlainText -Force
+            $username = "..." 
             $creds = New-Object System.Management.Automation.PSCredential -ArgumentList ($username, $password)
 
             # $creds = New-Object System.Management.Automation.PSCredential($username,$password)
