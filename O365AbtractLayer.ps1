@@ -15,16 +15,6 @@ function Write-Log {
     $currentRecord = "$tserror,$function,$step,$Description"
     Out-File -FilePath $LogFile -InputObject $currentRecord -Encoding UTF8 -Append 
 }
-# Writes output to a log file with a time date stamp
-Function Write-Log-Info {
-    Param ([string]$string)
-    
-    # Get the current date
-    [string]$date = Get-Date -Format G
-        
-    # Write everything to our log file
-    ( "[" + $date + "] - " + $string) | Out-File -FilePath $LogFile -Append
-}
 
 function Disconnect-All {
     
@@ -81,17 +71,15 @@ $Global:DisplayConnect = {
  # Function to connecto to O365 services
 Function Connect-O365 {
 
-    $Try = 0
     $global:errordesc = $null
     $Global:O365Cred = $null
+    Write-Host "`nPlease enter Office 365 Global Admin credentials:" -ForegroundColor Cyan
+    $Global:O365Cred = Get-Credential
 
     # Connecto to EXO Basic Authentication 
-    If ($null -eq $Global:O365Cred) {
-        &$Global:UserCredential
-    }
     try {
 
-        $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection -SessionOption $PSsettings -ErrorVariable errordescr -ErrorAction Stop 
+        $Global:EXOSession = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri "https://outlook.office365.com/powershell-liveid/" -Credential $global:O365Cred -Authentication "Basic" -AllowRedirection  -ErrorVariable errordescr -ErrorAction Stop 
         $CurrentError = $errordescr.exception  
         Import-Module (Import-PSSession $EXOSession  -AllowClobber -DisableNameChecking) -Global -DisableNameChecking -ErrorAction SilentlyContinue
         $CurrentDescription = "Success"

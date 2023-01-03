@@ -40,19 +40,6 @@ Function Start-SleepWithProgress {
 
 # Setup a new O365 Powershell Session
 Function New-CleanO365Session {
-    
-    # If we don't have a credential then prompt for it
-    $try = 0
-    while (($Credential -eq $Null) -and ($try -lt 3)){
-        $script:Credential = Get-Credential -Message "Please provide your Exchange Online Credentials"
-        $try++
-    }
-    
-    # If we still don't have a credentail object then abort
-    if ($Credential -eq $null){
-        Write-log "[Error] - Failed to get credentials"
-        Write-Error -Message "Failed to get credentials" -ErrorAction Stop
-    }
 
     Write-Log "Removing all PS Sessions"
 
@@ -171,4 +158,5 @@ Function Test-O365Session {
         Start-Sleep -Milliseconds $ManualThrottle
     }
 }
-Test-O365Session
+$Credential = get-Credential
+New-CleanO365Session
