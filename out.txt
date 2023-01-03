@@ -1,0 +1,14 @@
+[1/2/2023 11:11:54 PM] - [ERROR] - No Session Found
+[1/2/2023 11:11:54 PM] - Recreating Session
+[1/2/2023 11:11:54 PM] - Removing all PS Sessions
+[1/2/2023 11:11:54 PM] - Sleeping 5 seconds for Session Tear Down
+[1/2/2023 11:12:00 PM] - Creating new PS Session
+[1/2/2023 11:12:01 PM] - [ERROR] - Error while setting up session
+[1/2/2023 11:12:01 PM] - [outlook.office365.com] Connecting to remote server outlook.office365.com failed with the following error message : Basic Authorization failed for user anhle@coeld.org For more information, see the about_Remote_Troubleshooting Help topic.
+[1/2/2023 11:12:01 PM] - Sleeping 30s so that issue can potentially be resolved
+[1/2/2023 11:12:32 PM] - Removing all PS Sessions
+[1/2/2023 11:12:32 PM] - Sleeping 5 seconds for Session Tear Down
+[1/2/2023 11:12:38 PM] - Creating new PS Session
+[1/2/2023 11:12:38 PM] - [ERROR] - Error while setting up session
+[1/2/2023 11:12:38 PM] - [outlook.office365.com] Connecting to remote server outlook.office365.com failed with the following error message : Basic Authorization failed for user anhle@coeld.org For more information, see the about_Remote_Troubleshooting Help topic.
+[1/2/2023 11:12:38 PM] - Sleeping 30s so that issue can potentially be resolved
