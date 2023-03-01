@@ -1,0 +1,76 @@
+Instead, you should use modern authentication which provides a more secure and flexible way to authenticate to Exchange Online.
+
+To enable modern authentication in Exchange Online, you can follow these steps:
+
+Connect to Exchange Online PowerShell using the following command:
+Connect-ExchangeOnline -UserPrincipalName <UPN>
+
+Run the following command to verify the current authentication protocols for Exchange Online:
+Get-OrganizationConfig | Format-Table -Auto Name,OAuth*
+
+If the value for "OAuth2ClientProfileEnabled" is False, then you need to enable modern authentication for your organization by running the following command:
+Set-OrganizationConfig -OAuth2ClientProfileEnabled $true
+
+After enabling modern authentication for your organization, you can disable basic authentication by running the following command:
+Set-OrganizationConfig -OAuth2ClientProfileEnabled $true -OAuth2ClientProfileAuthenticationMethod OAuthOnly
+
+Finally, you can verify that basic authentication is disabled by running the following command:
+Get-OrganizationConfig | Format-Table -Auto Name,OAuth*
+
+I hope that helps! Please note that these instructions are only for Exchange Online version 3, and may differ for other versions or on-premises installations of Exchange.
+
+
+
+
+To get started with EXO v3, you can follow these general steps:
+
+Sign up for Microsoft 365: You can sign up for Microsoft 365 by visiting the Microsoft website and choosing the subscription plan that best fits your needs. Microsoft 365 includes a range of services including Exchange Online, OneDrive, SharePoint, and more.
+
+Configure your account: After subscribing to Microsoft 365, you'll need to configure your account to use Exchange Online. This typically involves setting up your domain name, adding users, and configuring the necessary DNS settings.
+
+Access Exchange Online: Once your account is configured, you can access Exchange Online through the Microsoft 365 portal or by using an email client such as Microsoft Outlook.
+
+Note that the exact steps to set up and configure Exchange Online may vary depending on your specific requirements and the version of Microsoft 365 you're using
+
+
+
+
+To connect to Exchange Online using modern authentication in PowerShell version 5.1, you can follow these steps:
+
+Install the Exchange Online PowerShell module: If you haven't already done so, you'll need to install the Exchange Online PowerShell module on your computer. You can download and install the module from the Microsoft website.
+
+Open PowerShell: Open PowerShell on your computer. You can do this by clicking on the Windows Start menu, typing "PowerShell" into the search bar, and selecting "Windows PowerShell" from the search results.
+
+Connect to Exchange Online using modern authentication: In the PowerShell window, type the following command:
+$UserCredential = Get-Credential
+$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $UserCredential -Authentication Basic -AllowRedirection
+Import-PSSession $Session -DisableNameChecking
+
+This command will prompt you to enter your Exchange Online administrator credentials. Enter your username and password when prompted. This command uses the -Authentication Basic parameter to force modern authentication.
+
+Verify the connection: Once you've entered your credentials, PowerShell will connect to Exchange Online using modern authentication. You can verify the connection by running a PowerShell cmdlet, such as Get-Mailbox.
+
+
+
+Although modern authentication to Exchange Online uses username and password to authenticate, it is a more secure authentication method than basic authentication because it uses tokens instead of the user's password to authenticate.
+
+When you use modern authentication to connect to Exchange Online, you enter your username and password into a login page hosted by Azure Active Directory (Azure AD), which serves as the identity provider for Exchange Online. Azure AD then issues a security token to the client application (in this case, PowerShell) that can be used to access Exchange Online resources. This security token is short-lived and can be revoked by Azure AD if necessary, providing an additional layer of security.
+
+The username and password you enter are not stored locally by the client application or cached by the operating system, but are used only to authenticate with Azure AD and obtain a security token. The token is then used to authenticate subsequent requests to Exchange Online without the need for the user's password.
+
+Additionally, modern authentication supports multi-factor authentication (MFA), which requires users to provide additional verification, such as a phone call or text message, when signing in. This provides an additional layer of security beyond username and password authentication.
+
+In summary, while modern authentication to Exchange Online still requires the use of a username and password, it is a more secure authentication method that uses tokens and supports additional security features such as MFA.
+
+
+To enable modern authentication for your organization in Exchange Online, you can follow these steps:
+
+Open the Exchange admin center: Sign in to the Microsoft 365 admin center and navigate to the Exchange admin center.
+
+Go to the organization's security settings: In the Exchange admin center, click on the "modern authentication" option under "permissions" in the left-hand menu. This will take you to the organization's security settings.
+
+Enable modern authentication: To enable modern authentication, select the checkbox next to "Enable modern authentication" and click "Save changes". Note that it may take up to 24 hours for this change to take effect.
+
+Enable modern authentication for specific protocols (optional): If you want to enable modern authentication for specific protocols, such as Exchange ActiveSync or IMAP, you can do so by selecting the appropriate checkboxes under "Authentication Flows". Note that enabling modern authentication for these protocols may require additional configuration steps.
+
+Once you've enabled modern authentication, you can use it to connect to Exchange Online using PowerShell or other client applications. Note that modern authentication is not enabled by default for all Microsoft 365 tenants, so you may need to check with your administrator or Microsoft support to confirm whether it is available for your organization. Additionally, you may need to configure additional settings or permissions to use modern authentication with specific client applications or protocols.
