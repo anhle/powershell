@@ -1,76 +1,157 @@
-Instead, you should use modern authentication which provides a more secure and flexible way to authenticate to Exchange Online.
-
-To enable modern authentication in Exchange Online, you can follow these steps:
-
-Connect to Exchange Online PowerShell using the following command:
-Connect-ExchangeOnline -UserPrincipalName <UPN>
-
-Run the following command to verify the current authentication protocols for Exchange Online:
-Get-OrganizationConfig | Format-Table -Auto Name,OAuth*
-
-If the value for "OAuth2ClientProfileEnabled" is False, then you need to enable modern authentication for your organization by running the following command:
-Set-OrganizationConfig -OAuth2ClientProfileEnabled $true
-
-After enabling modern authentication for your organization, you can disable basic authentication by running the following command:
-Set-OrganizationConfig -OAuth2ClientProfileEnabled $true -OAuth2ClientProfileAuthenticationMethod OAuthOnly
-
-Finally, you can verify that basic authentication is disabled by running the following command:
-Get-OrganizationConfig | Format-Table -Auto Name,OAuth*
-
-I hope that helps! Please note that these instructions are only for Exchange Online version 3, and may differ for other versions or on-premises installations of Exchange.
+Deliver the goals of your team, business/function and the company ■ Aligns priorities to the broader business strategy
+■ Prioritizes and delivers results to achieve business objectives
+▪ Eliminates bureaucracy, identifies issues and escalates as needed
+■ Manages costs and resources effectively
+0
+■ Identifies ways to improve processes/procedures to enhance quality and/or productivity
+- Runs disciplined meetings with a specific purpose/agenda, the right individuals and clear outcomes/next steps
 
 
+Certainly! Here's an example of how a software engineering team can deliver goals aligned with the broader business strategy, prioritize and deliver results, eliminate bureaucracy, and identify ways to improve processes to enhance quality and productivity:
 
+1. Aligning Priorities to the Broader Business Strategy:
+   - Regularly communicate with stakeholders, such as product managers and business leaders, to understand the company's strategic goals and objectives.
+   - Align the team's goals and projects with the broader business strategy, ensuring that the work being done directly contributes to the company's success.
 
-To get started with EXO v3, you can follow these general steps:
+2. Prioritizing and Delivering Results to Achieve Business Objectives:
+   - Break down larger projects into smaller, manageable tasks and prioritize them based on their impact on the business objectives.
+   - Utilize project management methodologies, such as Agile or Scrum, to track progress, manage tasks, and ensure timely delivery of results.
+   - Regularly communicate progress, challenges, and potential risks to stakeholders, keeping them informed and involved in the decision-making process.
 
-Sign up for Microsoft 365: You can sign up for Microsoft 365 by visiting the Microsoft website and choosing the subscription plan that best fits your needs. Microsoft 365 includes a range of services including Exchange Online, OneDrive, SharePoint, and more.
+3. Eliminating Bureaucracy and Identifying Issues:
+   - Run disciplined meetings with a specific purpose, agenda, and the right individuals involved.
+   - Ensure that meetings have clear outcomes and next steps, avoiding unnecessary discussions or tangents.
+   - Actively identify and address any bureaucratic processes or unnecessary red tape that may hinder productivity or decision-making.
 
-Configure your account: After subscribing to Microsoft 365, you'll need to configure your account to use Exchange Online. This typically involves setting up your domain name, adding users, and configuring the necessary DNS settings.
+4. Managing Costs and Resources Effectively:
+   - Regularly review and analyze resource allocation to ensure optimal utilization of available resources.
+   - Identify opportunities to streamline processes and reduce costs without compromising quality.
+   - Implement effective project tracking and budget management practices to ensure projects stay within allocated resources.
 
-Access Exchange Online: Once your account is configured, you can access Exchange Online through the Microsoft 365 portal or by using an email client such as Microsoft Outlook.
+5. Identifying Ways to Improve Processes/Procedures to Enhance Quality and Productivity:
+   - Encourage team members to provide feedback and suggestions for process improvements.
+   - Conduct regular retrospectives to reflect on past projects and identify areas for improvement.
+   - Implement continuous improvement practices, such as Lean or Six Sigma, to identify and eliminate waste, improve efficiency, and enhance quality.
 
-Note that the exact steps to set up and configure Exchange Online may vary depending on your specific requirements and the version of Microsoft 365 you're using
-
-
-
-
-To connect to Exchange Online using modern authentication in PowerShell version 5.1, you can follow these steps:
-
-Install the Exchange Online PowerShell module: If you haven't already done so, you'll need to install the Exchange Online PowerShell module on your computer. You can download and install the module from the Microsoft website.
-
-Open PowerShell: Open PowerShell on your computer. You can do this by clicking on the Windows Start menu, typing "PowerShell" into the search bar, and selecting "Windows PowerShell" from the search results.
-
-Connect to Exchange Online using modern authentication: In the PowerShell window, type the following command:
-$UserCredential = Get-Credential
-$Session = New-PSSession -ConfigurationName Microsoft.Exchange -ConnectionUri https://outlook.office365.com/powershell-liveid/ -Credential $UserCredential -Authentication Basic -AllowRedirection
-Import-PSSession $Session -DisableNameChecking
-
-This command will prompt you to enter your Exchange Online administrator credentials. Enter your username and password when prompted. This command uses the -Authentication Basic parameter to force modern authentication.
-
-Verify the connection: Once you've entered your credentials, PowerShell will connect to Exchange Online using modern authentication. You can verify the connection by running a PowerShell cmdlet, such as Get-Mailbox.
+By aligning priorities, delivering results, eliminating bureaucracy, managing costs and resources effectively, and identifying ways to improve processes, the software engineering team can contribute to the overall success of the business and enhance productivity and quality in their work.
 
 
 
-Although modern authentication to Exchange Online uses username and password to authenticate, it is a more secure authentication method than basic authentication because it uses tokens instead of the user's password to authenticate.
+Certainly! Here's an example of how a software engineering team can prioritize and deliver results, eliminate bureaucracy, manage costs and resources effectively, identify ways to improve processes, and run disciplined meetings:
 
-When you use modern authentication to connect to Exchange Online, you enter your username and password into a login page hosted by Azure Active Directory (Azure AD), which serves as the identity provider for Exchange Online. Azure AD then issues a security token to the client application (in this case, PowerShell) that can be used to access Exchange Online resources. This security token is short-lived and can be revoked by Azure AD if necessary, providing an additional layer of security.
+1. Prioritizes and Delivers Results to Achieve Business Objectives:
+   - Regularly align with stakeholders to understand the business objectives and priorities.
+   - Break down projects into smaller tasks and prioritize them based on their impact on the business objectives.
+   - Utilize project management methodologies, such as Agile or Scrum, to track progress and ensure timely delivery of results.
+   - Communicate progress, challenges, and potential risks to stakeholders, keeping them informed and involved in decision-making.
 
-The username and password you enter are not stored locally by the client application or cached by the operating system, but are used only to authenticate with Azure AD and obtain a security token. The token is then used to authenticate subsequent requests to Exchange Online without the need for the user's password.
+2. Eliminates Bureaucracy, Identifies Issues, and Escalates as Needed:
+   - Actively identify and address bureaucratic processes or unnecessary red tape that hinders productivity.
+   - Encourage open communication and feedback within the team to identify and resolve issues promptly.
+   - Escalate issues to the appropriate stakeholders or management when necessary, ensuring timely resolution and preventing bottlenecks.
 
-Additionally, modern authentication supports multi-factor authentication (MFA), which requires users to provide additional verification, such as a phone call or text message, when signing in. This provides an additional layer of security beyond username and password authentication.
+3. Manages Costs and Resources Effectively:
+   - Regularly review and analyze resource allocation to optimize resource utilization.
+   - Implement effective project tracking and budget management practices to ensure projects stay within allocated resources.
+   - Identify cost-saving opportunities without compromising quality, such as optimizing infrastructure usage or leveraging open-source solutions.
 
-In summary, while modern authentication to Exchange Online still requires the use of a username and password, it is a more secure authentication method that uses tokens and supports additional security features such as MFA.
+4. Identifies Ways to Improve Processes/Procedures to Enhance Quality and Productivity:
+   - Encourage team members to provide feedback and suggestions for process improvements.
+   - Conduct regular retrospectives to reflect on past projects and identify areas for improvement.
+   - Implement continuous improvement practices, such as Lean or Six Sigma, to identify and eliminate waste, improve efficiency, and enhance quality.
+
+5. Runs Disciplined Meetings with a Specific Purpose/Agenda, the Right Individuals, and Clear Outcomes/Next Steps:
+   - Define clear meeting objectives and agendas to ensure focused discussions.
+   - Invite relevant individuals who can contribute to the meeting's purpose and outcomes.
+   - Facilitate the meeting effectively, ensuring active participation and keeping discussions on track.
+   - Document clear outcomes and next steps, assigning responsibilities and deadlines to ensure accountability.
+
+By prioritizing and delivering results, eliminating bureaucracy, managing costs and resources effectively, identifying process improvements, and running disciplined meetings, the software engineering team can contribute to achieving business objectives, enhancing productivity, and maintaining a streamlined and efficient work environment.
 
 
-To enable modern authentication for your organization in Exchange Online, you can follow these steps:
 
-Open the Exchange admin center: Sign in to the Microsoft 365 admin center and navigate to the Exchange admin center.
 
-Go to the organization's security settings: In the Exchange admin center, click on the "modern authentication" option under "permissions" in the left-hand menu. This will take you to the organization's security settings.
+Anticipates and promptly addresses client/customer/stakeholder needs
+Collaborates across teams to leverage expertise, products and services to meet client/customer/stakeholder needs
+Delivers solutions to meet client/customer/stakeholder needs which are aligned with firm priorities
 
-Enable modern authentication: To enable modern authentication, select the checkbox next to "Enable modern authentication" and click "Save changes". Note that it may take up to 24 hours for this change to take effect.
+Certainly! Here's an example of how a software engineering team can anticipate and promptly address client/customer/stakeholder needs, collaborate across teams, and deliver solutions aligned with firm priorities:
 
-Enable modern authentication for specific protocols (optional): If you want to enable modern authentication for specific protocols, such as Exchange ActiveSync or IMAP, you can do so by selecting the appropriate checkboxes under "Authentication Flows". Note that enabling modern authentication for these protocols may require additional configuration steps.
+1. Anticipates and Promptly Addresses Client/Customer/Stakeholder Needs:
+   - Actively engages with clients/customers/stakeholders to understand their requirements, challenges, and expectations.
+   - Proactively identifies potential issues or areas of improvement and addresses them before they become major concerns.
+   - Provides timely and effective communication to keep clients/customers/stakeholders informed about project progress, updates, and any potential impacts.
 
-Once you've enabled modern authentication, you can use it to connect to Exchange Online using PowerShell or other client applications. Note that modern authentication is not enabled by default for all Microsoft 365 tenants, so you may need to check with your administrator or Microsoft support to confirm whether it is available for your organization. Additionally, you may need to configure additional settings or permissions to use modern authentication with specific client applications or protocols.
+2. Collaborates Across Teams to Leverage Expertise, Products, and Services:
+   - Works closely with cross-functional teams, such as product managers, designers, and quality assurance, to ensure a holistic approach to meeting client/customer/stakeholder needs.
+   - Leverages the expertise, products, and services available within the organization to deliver comprehensive solutions that address the specific requirements of clients/customers/stakeholders.
+   - Actively shares knowledge, best practices, and lessons learned with other teams to foster collaboration and continuous improvement.
+
+3. Delivers Solutions to Meet Client/Customer/Stakeholder Needs Aligned with Firm Priorities:
+   - Aligns project goals and deliverables with the firm's strategic priorities and objectives.
+   - Conducts thorough analysis and planning to ensure that the solutions delivered are tailored to meet the specific needs of clients/customers/stakeholders.
+   - Regularly evaluates and reassesses project progress and outcomes to ensure alignment with firm priorities and make necessary adjustments if needed.
+
+By anticipating and promptly addressing client/customer/stakeholder needs, collaborating across teams, and delivering solutions aligned with firm priorities, the software engineering team can effectively meet the expectations of clients/customers/stakeholders and contribute to the overall success of the organization.
+
+
+
+Foster a collaborative and inclusive environment that supports growth and development Partners and Communicates
+■ Establishes trust, creates inclusive environments of all voices and cultivates collaborative partnerships across all teams
+■ Communicates by adapting messages to different audiences; invites diverse perspectives and constructive debate to make more inclusive decisions
+■ Advocates for and values a culture of transparency, diversity, inclusion, equity and respect among teams
+Certainly! Here's an example of how a software engineering team can foster a collaborative and inclusive environment that supports growth and development, and values a culture of transparency, diversity, inclusion, equity, and respect among teams:
+
+1. Establishes Trust and Creates Inclusive Environments:
+   - Encourages open and honest communication among team members, fostering an environment where everyone feels comfortable sharing their ideas, concerns, and feedback.
+   - Actively listens to diverse perspectives and ensures that all voices are heard and valued, creating a sense of psychological safety within the team.
+   - Promotes a culture of respect, where differences are celebrated and individuals feel included and empowered to contribute their unique skills and experiences.
+
+2. Cultivates Collaborative Partnerships Across Teams:
+   - Actively seeks opportunities to collaborate with other teams, departments, or external stakeholders to leverage their expertise and resources.
+   - Encourages cross-functional collaboration by organizing joint meetings, workshops, or brainstorming sessions to foster knowledge sharing and innovation.
+   - Recognizes and appreciates the contributions of individuals and teams, fostering a sense of collective ownership and shared success.
+
+3. Communicates by Adapting Messages to Different Audiences:
+   - Tailors communication styles and messages to effectively reach and engage different audiences, considering their backgrounds, roles, and preferences.
+   - Actively seeks diverse perspectives and constructive debate during discussions, encouraging a culture of open dialogue and critical thinking.
+   - Actively seeks feedback from team members and stakeholders to continuously improve communication practices and ensure clarity and understanding.
+
+4. Advocates for Transparency, Diversity, Inclusion, Equity, and Respect:
+   - Promotes transparency by sharing relevant information, updates, and decisions with the team and stakeholders, fostering trust and alignment.
+   - Actively supports diversity and inclusion initiatives, such as promoting diverse hiring practices, providing equal opportunities for growth and development, and creating a safe and inclusive work environment.
+   - Advocates for equity by ensuring fair and unbiased treatment of all team members, regardless of their background, gender, race, or other characteristics.
+   - Demonstrates respect for all team members, valuing their contributions, and fostering a culture of mutual respect and appreciation.
+
+By fostering a collaborative and inclusive environment, valuing transparency, diversity, inclusion, equity, and respect, the software engineering team can create a positive and supportive work culture that promotes growth, innovation, and the overall well-being of its members.
+
+
+
+
+
+
+
+Promotes Continuous Learning and Growth
+■ Checks-in regularly with manager to refine priorities and developmental goals • Participates in diversity initiatives and promotes the firm's commitment to diversity, equity and inclusion
+■ Speaks up and challenges assumptions to contribute to improving the firm's culture Asks for and gives honest and constructive feedback across teams; seeks ways to continually develop self and supports others in their own development
+Demonstrates an openness to feedback and willingness to learn from mistakes or when given guidance; aware of own impact on others to address own biases and those of others
+
+
+Certainly! Here's an example of how a software engineering team can promote continuous learning and growth, participate in diversity initiatives, and demonstrate an openness to feedback:
+
+1. Promotes Continuous Learning and Growth:
+   - Actively seeks opportunities for professional development, such as attending conferences, workshops, or online courses, to stay updated with the latest technologies and industry best practices.
+   - Engages in knowledge sharing within the team by organizing tech talks, brown bag sessions, or coding challenges to foster a culture of continuous learning.
+   - Supports others in their development by sharing resources, providing mentorship, and offering guidance to help them achieve their growth goals.
+
+2. Participates in Diversity Initiatives and Promotes Commitment to Diversity, Equity, and Inclusion:
+   - Actively engages in diversity initiatives within the organization, such as joining employee resource groups or participating in diversity and inclusion training programs.
+   - Promotes a culture of diversity, equity, and inclusion by advocating for equal opportunities, challenging biases, and fostering an inclusive work environment where everyone feels valued and respected.
+
+3. Demonstrates Openness to Feedback and Willingness to Learn:
+   - Actively seeks feedback from managers, peers, and stakeholders to gain insights into areas of improvement and growth opportunities.
+   - Takes feedback constructively, reflecting on it, and using it as a catalyst for personal and professional development.
+   - Learns from mistakes and takes ownership of them, using them as learning experiences to improve future performance.
+   - Actively addresses biases, both their own and those of others, by being aware of their impact on others and taking steps to mitigate them.
+
+By promoting continuous learning and growth, participating in diversity initiatives, demonstrating openness to feedback, and addressing biases, the software engineering team can create a culture of continuous improvement, personal and professional development, and inclusivity. This not only benefits individual team members but also contributes to the overall success and well-being of the team and the organization as a whole.
