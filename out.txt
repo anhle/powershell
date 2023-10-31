@@ -1,1 +1,18 @@
+Certainly, let's provide more specific examples with facts on both the results and the behavior on how they were achieved:
 
+**Category 1: Aligns Priority to Business Strategy**
+
+**Example**:
+In my role as a cybersecurity engineer, I aligned my priorities with our business strategy by recognizing that safeguarding intellectual property was critical. This alignment led to implementing behavior-based security analytics, which enabled us to identify and mitigate insider threats effectively. As a result, we reduced the number of insider threat incidents by 70% over the year, thereby protecting our critical intellectual assets and ensuring data integrity.
+
+**Category 2: Prioritizes and Delivers Results to Achieve Business Goals**
+
+**Example**:
+As a software engineer, I prioritized and delivered results that significantly impacted our business goal of increasing revenue through a mobile application. I led the development of a new in-app purchase feature that allowed users to subscribe to premium content. Within six months, this feature generated an additional $1.5 million in revenue. My behavior involved closely collaborating with the product and marketing teams, ensuring a seamless user experience and promoting the feature, which led to its success.
+
+**Category 3: Identifies Ways to Improve Processes**
+
+**Example**:
+In my role as a software developer, I identified a process improvement opportunity related to our deployment pipeline. I implemented a continuous integration and continuous deployment (CI/CD) system that automated testing and deployment. This reduced the average time needed to roll out software updates from two weeks to just two days. Additionally, the number of critical bugs post-release decreased by 60% due to automated testing. My behavior involved conducting thorough research, presenting the benefits of CI/CD, and collaborating with the operations team to ensure a seamless implementation.
+
+These specific examples highlight the direct impact on business results, along with the behaviors and actions taken to achieve those results. They demonstrate how aligning with business strategy, delivering tangible outcomes, and process improvements can be achieved with measurable results.
