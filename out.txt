@@ -28,3 +28,15 @@ Through effective collaboration across teams, we successfully resolved the produ
 Lessons Learned:
 This incident highlighted the importance of collaboration and leveraging the expertise of different teams to find effective solutions. It reinforced the value of open communication, proactive problem-solving, and cross-functional collaboration in delivering results that meet client needs and align with firm priorities.
 Overall, this incident reinforced the value of collaboration, open communication, and proactive problem-solving in delivering solutions that meet client needs and align with firm priorities. Moving forward, I will continue to prioritize cross-team collaboration, leverage expertise, and emphasize thorough testing to ensure the successful resolution of issues and the delivery of high-quality solutions.
+
+
+
+
+
+I actively participate in diversity initiatives within the organization. I have joined the Plano AI & ML Ignite group and regularly attend diversity and inclusion training programs. By actively engaging in these initiatives, I contribute to creating a more inclusive and diverse work environment. I am passionate about giving back to the community and supporting the next generation of talent. 
+
+I actively listen to different perspectives and ensure that all team members feel valued and respected. I recognize and appreciate the contributions of individuals and teams.
+
+Furthermore, I demonstrate openness to feedback and a willingness to learn. I actively seek feedback from my managers, peers, and stakeholders to gain insights into areas of improvement. I take feedback constructively, reflect on it, and use it as a catalyst for personal and professional development. I also learn from my mistakes and take ownership of them, using them as learning experiences to improve my future performance.
+
+As part of my commitment to continuous learning, I recently attended a workshop on AWS serverless architecture.  I learned best practices for designing and deploying serverless applications, optimizing performance, and managing scalability. Attending this workshop on AWS serverless has not only expanded my technical skills but also allowed me to contribute to the team's goals. 
