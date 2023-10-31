@@ -11,3 +11,20 @@ Result(How):
 - Collaborated with a cross-functional team to ensure that the resolutions were comprehensive, aligned with the business objectives, and implemented on time. Actively sought feedback and suggestions from team members to continuously improve processes and enhance the quality of the solutions delivered.
 
 By prioritizing and delivering results through effective communication, proactive issue identification and resolution, thorough testing, detailed reporting, and collaboration with cross-functional teams, I successfully achieved the business objectives of implementing a comprehensive mail extraction solution, reducing incident response time, and addressing critical issues.
+
+
+
+
+
+
+Production Incident: On March 9, our mail extraction for O365 started failing with an "access denied" error.
+Collaboration and Resolution:
+1. Cross-Team Collaboration and Prompt Communication: I immediately initiated communication with the relevant teams, including the Exchange team, GTI team, and Microsoft teams. This ensured that all stakeholders were aware of the issue and could contribute their expertise to finding a solution. We were able to determine that the access denied error was caused by a policy update pushed by the Exchange team.
+2. Expertise Utilization: I worked closely with the Microsoft team and Exchange team to understand the impact of the policy update on our mail extraction process. By leveraging their technical expertise, we devised a plan to transition from basic authentication to modern authentication methods and upgrade the EXO module to v3.2.0
+3. Code Modification and Testing: I modified the code and implemented the new authentication method. We conducted thorough testing to ensure the functionality and security of the updated code before deploying it to the production environment.
+4. Monitoring and Validation: I oversaw the implementation of continuous monitoring to ensure the stability and effectiveness of the mail extraction process. We validated that the access denied error was resolved and that mail extraction was functioning as expected.
+Result:
+Through effective collaboration across teams, we successfully resolved the production incident and restored mail extraction functionality for O365. This collaboration not only addressed the immediate issue but also fostered a culture of teamwork and knowledge sharing.
+Lessons Learned:
+This incident highlighted the importance of collaboration and leveraging the expertise of different teams to find effective solutions. It reinforced the value of open communication, proactive problem-solving, and cross-functional collaboration in delivering results that meet client needs and align with firm priorities.
+Overall, this incident reinforced the value of collaboration, open communication, and proactive problem-solving in delivering solutions that meet client needs and align with firm priorities. Moving forward, I will continue to prioritize cross-team collaboration, leverage expertise, and emphasize thorough testing to ensure the successful resolution of issues and the delivery of high-quality solutions.
