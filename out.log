@@ -1,1 +1,117 @@
+import os
+import hashlib
+import csv
+import logging
+from datetime import datetime, timedelta
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
+# Configure logging
+logging.basicConfig(filename='file_hashing.log', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+def get_folder_path(prompt):
+    while True:
+        folder_path = input(prompt)
+        if os.path.isdir(folder_path):
+            return folder_path
+        else:
+            print("The folder does not exist. Please try again.")
+            logging.error("The folder does not exist: %s", folder_path)
+
+def get_output_path(prompt):
+    while True:
+        output_path = input(prompt)
+        if os.path.isdir(os.path.dirname(output_path)):
+            return output_path
+        else:
+            print("The output folder does not exist. Please try again.")
+            logging.error("The output folder does not exist: %s", os.path.dirname(output_path))
+
+def hash_file(file_path):
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(8192), b""):
+                sha256_hash.update(byte_block)
+        return file_path, sha256_hash.hexdigest()
+    except Exception as e:
+        logging.error("Error hashing file %s: %s", file_path, e)
+        return file_path, None
+
+def hash_files_in_folder(folder):
+    files_to_hash = []
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            files_to_hash.append(os.path.join(root, file))
+
+    hash_results = {}
+    start_time = datetime.now()
+    total_files = len(files_to_hash)
+
+    with ProcessPoolExecutor() as executor:
+        future_to_file = {executor.submit(hash_file, file): file for file in files_to_hash}
+        for idx, future in enumerate(as_completed(future_to_file), 1):
+            file_path, file_hash = future.result()
+            if file_hash:
+                hash_results[file_path] = file_hash
+
+            # Update progress
+            elapsed_time = datetime.now() - start_time
+            avg_time_per_file = elapsed_time / idx
+            remaining_files = total_files - idx
+            estimated_remaining_time = avg_time_per_file * remaining_files
+
+            print(f"Processed {idx}/{total_files} files. "
+                  f"Elapsed time: {elapsed_time}, "
+                  f"Estimated remaining time: {estimated_remaining_time}")
+
+    return hash_results
+
+def compare_hashes(source_folder, destination_folder):
+    # Hash files in source and destination folders
+    source_hashes = hash_files_in_folder(source_folder)
+    destination_hashes = hash_files_in_folder(destination_folder)
+
+    # Compare hashes
+    differences = []
+    for file_path, source_hash in source_hashes.items():
+        relative_path = os.path.relpath(file_path, source_folder)
+        destination_file_path = os.path.join(destination_folder, relative_path)
+        destination_hash = destination_hashes.get(destination_file_path)
+
+        if destination_hash is None:
+            differences.append((relative_path, source_hash, "MISSING"))
+        elif source_hash != destination_hash:
+            differences.append((relative_path, source_hash, destination_hash))
+
+    return differences
+
+def main():
+    logging.info("Program started.")
+    start_time = datetime.now()
+
+    source_folder = get_folder_path("Enter the source folder containing the files to hash: ")
+    destination_folder = get_folder_path("Enter the destination folder containing the files to hash: ")
+    output_csv = get_output_path("Enter the full path for the output CSV file: ")
+
+    differences = compare_hashes(source_folder, destination_folder)
+
+    try:
+        with open(output_csv, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(['Relative Path', 'Source Hash', 'Destination Hash'])
+
+            for difference in differences:
+                csvwriter.writerow(difference)
+
+        logging.info("Hash comparison results have been written to %s", output_csv)
+    except Exception as e:
+        logging.error("Error writing to CSV file %s: %s", output_csv, e)
+
+    end_time = datetime.now()
+    processing_time = end_time - start_time
+    logging.info("Program finished. Processing time: %s", processing_time)
+    print(f"Hash comparison results have been written to {output_csv}")
+
+if __name__ == "__main__":
+    main()
