@@ -1,42 +1,107 @@
-Prioritizes and Delivers Results to Achieve Business Objectives:
-Result (What): 
-- Successfully implemented a comprehensive Mail extraction issues and resolution to address the specific needs of the business. This solution involved developing custom scripts or utilizing existing tools to extract and process emails efficiently.
-- By proactively identifying and addressing issues, I significantly reduced incident response time by 50% compared to the previous year.
-- Identified 3 critical issues and implemented resolutions to mitigate their impact.
+import os
+import hashlib
+import csv
+import logging
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 
-Result(How): 
-- Regularly checked log files and collaborated with clients/business users to quickly resolve any issues that arose. Maintained open and transparent communication with stakeholders, providing regular progress updates, discussing challenges, and addressing potential risks.
-- Conducted thorough vulnerability assessments and various types of testing, such as acceptance testing, regression testing, and integration testing, to ensure the identification and resolution of potential issues before they could impact the system.
-- Analyzed the findings and generated detailed reports. These reports included a summary of the identified vulnerabilities, issues, or areas for improvement, along with recommended resolutions or mitigation strategies. Provided these reports to the relevant stakeholders to ensure that the identified findings were addressed promptly and effectively.
-- Collaborated with a cross-functional team to ensure that the resolutions were comprehensive, aligned with the business objectives, and implemented on time. Actively sought feedback and suggestions from team members to continuously improve processes and enhance the quality of the solutions delivered.
+# Configure logging
+logging.basicConfig(filename='file_hashing.log', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
-By prioritizing and delivering results through effective communication, proactive issue identification and resolution, thorough testing, detailed reporting, and collaboration with cross-functional teams, I successfully achieved the business objectives of implementing a comprehensive mail extraction solution, reducing incident response time, and addressing critical issues.
+def get_folder_path(prompt):
+    while True:
+        folder_path = input(prompt)
+        if os.path.isdir(folder_path):
+            return folder_path
+        else:
+            print("The folder does not exist. Please try again.")
+            logging.error("The folder does not exist: %s", folder_path)
 
+def get_output_path(prompt):
+    while True:
+        output_path = input(prompt)
+        if os.path.isdir(os.path.dirname(output_path)):
+            return output_path
+        else:
+            print("The output folder does not exist. Please try again.")
+            logging.error("The output folder does not exist: %s", os.path.dirname(output_path))
 
+def hash_file(file_path):
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(8192), b""):
+                sha256_hash.update(byte_block)
+        return file_path, sha256_hash.hexdigest()
+    except Exception as e:
+        logging.error("Error hashing file %s: %s", file_path, e)
+        return file_path, None
 
+def hash_files_in_folder(folder, executor_class):
+    files_to_hash = []
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            files_to_hash.append(os.path.join(root, file))
 
+    hash_results = {}
+    with executor_class() as executor:
+        future_to_file = {executor.submit(hash_file, file): file for file in files_to_hash}
+        for future in as_completed(future_to_file):
+            file_path, file_hash = future.result()
+            if file_hash:
+                hash_results[file_path] = file_hash
 
+    return hash_results
 
-Production Incident: On March 9, our mail extraction for O365 started failing with an "access denied" error.
-Collaboration and Resolution:
-1. Cross-Team Collaboration and Prompt Communication: I immediately initiated communication with the relevant teams, including the Exchange team, GTI team, and Microsoft teams. This ensured that all stakeholders were aware of the issue and could contribute their expertise to finding a solution. We were able to determine that the access denied error was caused by a policy update pushed by the Exchange team.
-2. Expertise Utilization: I worked closely with the Microsoft team and Exchange team to understand the impact of the policy update on our mail extraction process. By leveraging their technical expertise, we devised a plan to transition from basic authentication to modern authentication methods and upgrade the EXO module to v3.2.0
-3. Code Modification and Testing: I modified the code and implemented the new authentication method. We conducted thorough testing to ensure the functionality and security of the updated code before deploying it to the production environment.
-4. Monitoring and Validation: I oversaw the implementation of continuous monitoring to ensure the stability and effectiveness of the mail extraction process. We validated that the access denied error was resolved and that mail extraction was functioning as expected.
-Result:
-Through effective collaboration across teams, we successfully resolved the production incident and restored mail extraction functionality for O365. This collaboration not only addressed the immediate issue but also fostered a culture of teamwork and knowledge sharing.
-Lessons Learned:
-This incident highlighted the importance of collaboration and leveraging the expertise of different teams to find effective solutions. It reinforced the value of open communication, proactive problem-solving, and cross-functional collaboration in delivering results that meet client needs and align with firm priorities.
-Overall, this incident reinforced the value of collaboration, open communication, and proactive problem-solving in delivering solutions that meet client needs and align with firm priorities. Moving forward, I will continue to prioritize cross-team collaboration, leverage expertise, and emphasize thorough testing to ensure the successful resolution of issues and the delivery of high-quality solutions.
+def compare_hashes(source_folder, destination_folder, executor_class):
+    # Hash files in source and destination folders
+    source_hashes = hash_files_in_folder(source_folder, executor_class)
+    destination_hashes = hash_files_in_folder(destination_folder, executor_class)
 
+    # Compare hashes
+    differences = []
+    for file_path, source_hash in source_hashes.items():
+        relative_path = os.path.relpath(file_path, source_folder)
+        destination_file_path = os.path.join(destination_folder, relative_path)
+        destination_hash = destination_hashes.get(destination_file_path)
 
+        if destination_hash is None:
+            differences.append((relative_path, source_hash, "MISSING"))
+        elif source_hash != destination_hash:
+            differences.append((relative_path, source_hash, destination_hash))
 
+    return differences
 
+def main():
+    logging.info("Program started.")
+    start_time = datetime.now()
 
-I actively participate in diversity initiatives within the organization. I have joined the Plano AI & ML Ignite group and regularly attend diversity and inclusion training programs. By actively engaging in these initiatives, I contribute to creating a more inclusive and diverse work environment. I am passionate about giving back to the community and supporting the next generation of talent. 
+    source_folder = get_folder_path("Enter the source folder containing the files to hash: ")
+    destination_folder = get_folder_path("Enter the destination folder containing the files to hash: ")
+    output_csv = get_output_path("Enter the full path for the output CSV file: ")
 
-I actively listen to different perspectives and ensure that all team members feel valued and respected. I recognize and appreciate the contributions of individuals and teams.
+    # Choose the executor: ThreadPoolExecutor or ProcessPoolExecutor
+    executor_class = ProcessPoolExecutor  # or ThreadPoolExecutor
 
-Furthermore, I demonstrate openness to feedback and a willingness to learn. I actively seek feedback from my managers, peers, and stakeholders to gain insights into areas of improvement. I take feedback constructively, reflect on it, and use it as a catalyst for personal and professional development. I also learn from my mistakes and take ownership of them, using them as learning experiences to improve my future performance.
+    differences = compare_hashes(source_folder, destination_folder, executor_class)
 
-As part of my commitment to continuous learning, I recently attended a workshop on AWS serverless architecture.  I learned best practices for designing and deploying serverless applications, optimizing performance, and managing scalability. Attending this workshop on AWS serverless has not only expanded my technical skills but also allowed me to contribute to the team's goals. 
+    try:
+        with open(output_csv, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(['Relative Path', 'Source Hash', 'Destination Hash'])
+
+            for difference in differences:
+                csvwriter.writerow(difference)
+
+        logging.info("Hash comparison results have been written to %s", output_csv)
+    except Exception as e:
+        logging.error("Error writing to CSV file %s: %s", output_csv, e)
+
+    end_time = datetime.now()
+    processing_time = end_time - start_time
+    logging.info("Program finished. Processing time: %s", processing_time)
+    print(f"Hash comparison results have been written to {output_csv}")
+
+if __name__ == "__main__":
+    main()
