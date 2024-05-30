@@ -115,3 +115,133 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+import os
+import hashlib
+import csv
+import logging
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import psutil
+import time
+
+# Configure logging
+logging.basicConfig(filename='file_hashing.log', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Define the number of worker threads
+MAX_WORKERS = 40  # Increase number of threads for I/O-bound tasks
+
+def get_folder_path(prompt):
+    while True:
+        folder_path = input(prompt)
+        if os.path.isdir(folder_path):
+            return folder_path
+        else:
+            print("The folder does not exist. Please try again.")
+            logging.error("The folder does not exist: %s", folder_path)
+
+def get_output_path(prompt):
+    while True:
+        output_path = input(prompt)
+        if os.path.isdir(os.path.dirname(output_path)):
+            return output_path
+        else:
+            print("The output folder does not exist. Please try again.")
+            logging.error("The output folder does not exist: %s", os.path.dirname(output_path))
+
+def hash_file(file_path):
+    sha256_hash = hashlib.sha256()
+    try:
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(65536), b""):  # Read in larger chunks
+                sha256_hash.update(byte_block)
+        return file_path, sha256_hash.hexdigest()
+    except Exception as e:
+        logging.error("Error hashing file %s: %s", file_path, e)
+        return file_path, None
+
+def hash_files_in_folder(folder):
+    files_to_hash = []
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            files_to_hash.append(os.path.join(root, file))
+
+    hash_results = {}
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_file = {executor.submit(hash_file, file): file for file in files_to_hash}
+        for future in as_completed(future_to_file):
+            file_path, file_hash = future.result()
+            if file_hash:
+                hash_results[file_path] = file_hash
+
+    return hash_results
+
+def compare_hashes(source_folder, destination_folder):
+    # Hash files in source and destination folders
+    source_hashes = hash_files_in_folder(source_folder)
+    destination_hashes = hash_files_in_folder(destination_folder)
+
+    # Compare hashes
+    differences = []
+    for file_path, source_hash in source_hashes.items():
+        relative_path = os.path.relpath(file_path, source_folder)
+        destination_file_path = os.path.join(destination_folder, relative_path)
+        destination_hash = destination_hashes.get(destination_file_path)
+
+        if destination_hash is None:
+            differences.append((relative_path, source_hash, "MISSING"))
+        elif source_hash != destination_hash:
+            differences.append((relative_path, source_hash, destination_hash))
+
+    return differences
+
+def monitor_resources(interval=1):
+    try:
+        while True:
+            cpu_usage = psutil.cpu_percent(interval=interval)
+            memory_info = psutil.virtual_memory()
+            memory_usage = memory_info.percent
+            thread_count = threading.active_count()
+            logging.info(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}")
+            print(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}")
+    except KeyboardInterrupt:
+        print("Monitoring stopped.")
+
+def main():
+    logging.info("Program started.")
+    start_time = datetime.now()
+
+    source_folder = get_folder_path("Enter the source folder containing the files to hash: ")
+    destination_folder = get_folder_path("Enter the destination folder containing the files to hash: ")
+    output_csv = get_output_path("Enter the full path for the output CSV file: ")
+
+    # Start resource monitoring in a separate thread
+    monitor_thread = threading.Thread(target=monitor_resources)
+    monitor_thread.daemon = True
+    monitor_thread.start()
+
+    differences = compare_hashes(source_folder, destination_folder)
+
+    try:
+        with open(output_csv, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(['Relative Path', 'Source Hash', 'Destination Hash'])
+
+            for difference in differences:
+                csvwriter.writerow(difference)
+
+        logging.info("Hash comparison results have been written to %s", output_csv)
+    except Exception as e:
+        logging.error("Error writing to CSV file %s: %s", output_csv, e)
+
+    end_time = datetime.now()
+    processing_time = end_time - start_time
+    logging.info("Program finished. Processing time: %s", processing_time)
+    print(f"Hash comparison results have been written to {output_csv}")
+
+if __name__ == "__main__":
+    main()
