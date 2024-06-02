@@ -15,6 +15,7 @@ BUFFER_SIZE_THRESHOLD = 10000  # Threshold for buffered writing to database
 CHECKPOINT_INTERVAL = 1000  # Interval for saving checkpoint data
 BATCH_SIZE = 20  # Batch size for processing files
 MAX_WORKERS = 20  # Maximum number of worker threads
+READ_CHUNK_SIZE = 65536  # Read chunk size for network files (default: 64KB)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -59,7 +60,7 @@ def load_checkpoint(conn):
     checkpoint = {row[0] for row in rows}
     return checkpoint
 
-async def hash_file(file_path):
+async def hash_file(file_path, chunk_size=READ_CHUNK_SIZE):
     if os.name == 'nt':  # Check if the OS is Windows
         if len(file_path) > 260:
             file_path = f'\\\\?\\{file_path}'
@@ -68,7 +69,7 @@ async def hash_file(file_path):
     try:
         async with aiofiles.open(file_path, "rb") as f:
             while True:
-                byte_block = await f.read(65536)
+                byte_block = await f.read(chunk_size)
                 if not byte_block:
                     break
                 md5_hash.update(byte_block)
@@ -77,16 +78,16 @@ async def hash_file(file_path):
         logging.error("Error hashing file %s: %s", file_path, e)
         return file_path, None
 
-def process_files_batch(file_paths, conn):
+def process_files_batch(file_paths, conn, chunk_size=READ_CHUNK_SIZE):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    tasks = [hash_file(file_path) for file_path in file_paths]
+    tasks = [hash_file(file_path, chunk_size) for file_path in file_paths]
     file_hashes = loop.run_until_complete(asyncio.gather(*tasks))
     for file_hash in file_hashes:
         if file_hash:
             insert_file_hash(conn, *file_hash)
 
-def hash_files_in_folder(folder, conn):
+def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
     start_time = datetime.now()
     processed_count = 0
     checkpoint = load_checkpoint(conn)
@@ -101,7 +102,7 @@ def hash_files_in_folder(folder, conn):
                 if file_path not in checkpoint:
                     file_paths.append(file_path)
                     if len(file_paths) >= BATCH_SIZE:
-                        futures.append(executor.submit(process_files_batch, file_paths, conn))
+                        futures.append(executor.submit(process_files_batch, file_paths, conn, chunk_size))
                         file_paths = []
 
                     processed_count += 1
@@ -116,7 +117,7 @@ def hash_files_in_folder(folder, conn):
 
         # Process remaining files
         if file_paths:
-            futures.append(executor.submit(process_files_batch, file_paths, conn))
+            futures.append(executor.submit(process_files_batch, file_paths, conn, chunk_size))
 
         # Wait for all futures to complete
         for future in as_completed(futures):
@@ -145,8 +146,11 @@ def monitor_resources(interval=1):
             memory_info = psutil.virtual_memory()
             memory_usage = memory_info.percent
             thread_count = threading.active_count()
-            logging.info(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}")
-            print(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}")
+            net_io = psutil.net_io_counters()
+            bytes_sent = net_io.bytes_sent
+            bytes_recv = net_io.bytes_recv
+            logging.info(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}, Bytes Sent: {bytes_sent}, Bytes Received: {bytes_recv}")
+            print(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}, Bytes Sent: {bytes_sent}, Bytes Received: {bytes_recv}")
     except KeyboardInterrupt:
         print("Monitoring stopped.")
 
