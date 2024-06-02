@@ -2,106 +2,174 @@ import os
 import hashlib
 import csv
 import logging
-from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+import logging.handlers
+import concurrent.futures
+import sys
+import psutil
+import time
+import json
 
-# Configure logging
-logging.basicConfig(filename='file_hashing.log', level=logging.DEBUG,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+CHUNK_SIZE = 1024 * 1024  # Read files in chunks of 1 MB
+MEMORY_LIMIT = 1 * 1024 * 1024 * 1024  # 1GB memory limit for batching
+MAX_WORKERS = 40  # Adjusted for better utilization
+MONITOR_INTERVAL = 1  # Interval for monitoring resource usage in seconds
+PROCESSED_FILES_RECORD = 'processed_files.json'  # File to store processed files record
+LOG_FILE = 'file_hashing.log'  # Log file name
+LOG_SIZE_LIMIT = 10 * 1024 * 1024  # Log file size limit of 10 MB
+BACKUP_COUNT = 5  # Keep up to 5 backup log files
 
 def get_folder_path(prompt):
-    while True:
+    folder_path = input(prompt)
+    while not os.path.isdir(folder_path):
+        print("The specified folder does not exist. Please try again.")
         folder_path = input(prompt)
-        if os.path.isdir(folder_path):
-            return folder_path
-        else:
-            print("The folder does not exist. Please try again.")
-            logging.error("The folder does not exist: %s", folder_path)
+    return folder_path
 
-def get_output_path(prompt):
-    while True:
-        output_path = input(prompt)
-        if os.path.isdir(os.path.dirname(output_path)):
-            return output_path
-        else:
-            print("The output folder does not exist. Please try again.")
-            logging.error("The output folder does not exist: %s", os.path.dirname(output_path))
+def get_file_path(prompt):
+    file_path = input(prompt)
+    return file_path
 
 def hash_file(file_path):
-    sha256_hash = hashlib.sha256()
     try:
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(8192), b""):
-                sha256_hash.update(byte_block)
-        return file_path, sha256_hash.hexdigest()
+        hasher = hashlib.sha256()
+        with open(file_path, 'rb') as file:
+            while chunk := file.read(CHUNK_SIZE):
+                hasher.update(chunk)
+        return file_path, hasher.hexdigest(), None
     except Exception as e:
-        logging.error("Error hashing file %s: %s", file_path, e)
-        return file_path, None
+        return file_path, None, str(e)
 
-def hash_files_in_folder(folder, executor_class):
-    files_to_hash = []
-    for root, dirs, files in os.walk(folder):
+def write_to_csv(file_hashes, output_file):
+    with open(output_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(file_hashes)
+
+def monitor_resources():
+    process = psutil.Process()
+    while True:
+        print(f"CPU Usage: {psutil.cpu_percent(interval=1)}%")
+        print(f"Memory Usage: {psutil.virtual_memory().percent}%")
+        print(f"Network Usage: {psutil.net_io_counters().bytes_sent / (1024*1024):.2f} MB sent, {psutil.net_io_counters().bytes_recv / (1024*1024):.2f} MB received")
+        print(f"Active Threads: {len(process.threads())}")
+        time.sleep(MONITOR_INTERVAL)
+
+def load_processed_files(record_file):
+    if os.path.exists(record_file):
+        with open(record_file, 'r') as file:
+            return set(json.load(file))
+    return set()
+
+def save_processed_files(processed_files, record_file):
+    with open(record_file, 'w') as file:
+        json.dump(list(processed_files), file)
+
+def normalize_path(file_path):
+    # On Windows, use the \\?\ prefix for long paths
+    if os.name == 'nt' and len(file_path) > 260:
+        return f"\\\\?\\{file_path}"
+    return file_path
+
+def setup_logging():
+    logger = logging.getLogger()
+    logger.setLevel(logging.ERROR)
+    
+    handler = logging.handlers.RotatingFileHandler(
+        LOG_FILE, maxBytes=LOG_SIZE_LIMIT, backupCount=BACKUP_COUNT
+    )
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    logger.addHandler(handler)
+    return logger
+
+def get_relative_file_paths(folder):
+    file_paths = []
+    for root, _, files in os.walk(folder):
         for file in files:
-            files_to_hash.append(os.path.join(root, file))
+            full_path = os.path.join(root, file)
+            relative_path = os.path.relpath(full_path, folder)
+            file_paths.append((relative_path, full_path))
+    return file_paths
 
-    hash_results = {}
-    with executor_class() as executor:
-        future_to_file = {executor.submit(hash_file, file): file for file in files_to_hash}
-        for future in as_completed(future_to_file):
-            file_path, file_hash = future.result()
-            if file_hash:
-                hash_results[file_path] = file_hash
-
-    return hash_results
-
-def compare_hashes(source_folder, destination_folder, executor_class):
-    # Hash files in source and destination folders
-    source_hashes = hash_files_in_folder(source_folder, executor_class)
-    destination_hashes = hash_files_in_folder(destination_folder, executor_class)
-
-    # Compare hashes
-    differences = []
-    for file_path, source_hash in source_hashes.items():
-        relative_path = os.path.relpath(file_path, source_folder)
-        destination_file_path = os.path.join(destination_folder, relative_path)
-        destination_hash = destination_hashes.get(destination_file_path)
-
-        if destination_hash is None:
-            differences.append((relative_path, source_hash, "MISSING"))
-        elif source_hash != destination_hash:
-            differences.append((relative_path, source_hash, destination_hash))
-
-    return differences
+def compare_hashes(source_hashes, destination_hashes):
+    discrepancies = []
+    for rel_path, source_hash in source_hashes.items():
+        dest_hash = destination_hashes.get(rel_path)
+        if dest_hash is None:
+            discrepancies.append((rel_path, "MISSING IN DESTINATION", source_hash, ""))
+        elif source_hash != dest_hash:
+            discrepancies.append((rel_path, "DIFFERENT HASH", source_hash, dest_hash))
+    for rel_path in destination_hashes.keys():
+        if rel_path not in source_hashes:
+            discrepancies.append((rel_path, "MISSING IN SOURCE", "", destination_hashes[rel_path]))
+    return discrepancies
 
 def main():
-    logging.info("Program started.")
-    start_time = datetime.now()
+    # Configure logging
+    logger = setup_logging()
 
-    source_folder = get_folder_path("Enter the source folder containing the files to hash: ")
-    destination_folder = get_folder_path("Enter the destination folder containing the files to hash: ")
-    output_csv = get_output_path("Enter the full path for the output CSV file: ")
+    # Get the folders containing the files to hash and compare
+    source_folder = get_folder_path("Please enter the path to the source folder: ")
+    destination_folder = get_folder_path("Please enter the path to the destination folder: ")
 
-    # Choose the executor: ThreadPoolExecutor or ProcessPoolExecutor
-    executor_class = ProcessPoolExecutor  # or ThreadPoolExecutor
+    # Get the location to save the hash values
+    output_file = get_file_path("Please enter the path to the CSV file to save the hash values: ")
 
-    differences = compare_hashes(source_folder, destination_folder, executor_class)
+    # Load the record of processed files
+    processed_files = load_processed_files(PROCESSED_FILES_RECORD)
 
-    try:
-        with open(output_csv, 'w', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(['Relative Path', 'Source Hash', 'Destination Hash'])
+    # Create or clear the CSV file if starting fresh
+    if not processed_files:
+        with open(output_file, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["File Path", "SHA-256 Hash"])
 
-            for difference in differences:
-                csvwriter.writerow(difference)
+    # Collecting file paths
+    source_files = get_relative_file_paths(source_folder)
+    destination_files = get_relative_file_paths(destination_folder)
 
-        logging.info("Hash comparison results have been written to %s", output_csv)
-    except Exception as e:
-        logging.error("Error writing to CSV file %s: %s", output_csv, e)
+    source_file_paths = [normalize_path(path[1]) for path in source_files]
+    destination_file_paths = [normalize_path(path[1]) for path in destination_files]
 
-    end_time = datetime.now()
-    processing_time = end_time - start_time
-    logging.info("Program finished. Processing time: %s", processing_time)
-    print(f"Hash comparison results have been written to {output_csv}")
+    # Start resource monitoring in a separate thread
+    monitor_thread = concurrent.futures.ThreadPoolExecutor(max_workers=1).submit(monitor_resources)
+
+    # Hash files in parallel using multiprocessing
+    source_hashes = {}
+    destination_hashes = {}
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_file = {executor.submit(hash_file, file_path): file_path for file_path in source_file_paths}
+        for future in concurrent.futures.as_completed(future_to_file):
+            file_path, file_hash, error = future.result()
+            if error:
+                logger.error(f"Failed to hash {file_path}: {error}")
+            else:
+                relative_path = os.path.relpath(file_path, source_folder)
+                source_hashes[relative_path] = file_hash
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_to_file = {executor.submit(hash_file, file_path): file_path for file_path in destination_file_paths}
+        for future in concurrent.futures.as_completed(future_to_file):
+            file_path, file_hash, error = future.result()
+            if error:
+                logger.error(f"Failed to hash {file_path}: {error}")
+            else:
+                relative_path = os.path.relpath(file_path, destination_folder)
+                destination_hashes[relative_path] = file_hash
+
+    # Compare hashes
+    discrepancies = compare_hashes(source_hashes, destination_hashes)
+
+    # Write discrepancies to CSV
+    with open(output_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["File Path", "Status", "Source Hash", "Destination Hash"])
+        writer.writerows(discrepancies)
+
+    print(f"Hashes have been successfully saved to {output_file}")
+    print(f"Discrepancies have been saved to {output_file}")
+    monitor_thread.cancel()  # Stop the resource monitoring thread
 
 if __name__ == "__main__":
     main()
