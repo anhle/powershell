@@ -7,9 +7,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import psutil
 import sqlite3
+import csv
+import asyncio
+import aiofiles
 
-BUFFER_SIZE_THRESHOLD = 10000  # Threshold for buffered writing to CSV
+BUFFER_SIZE_THRESHOLD = 10000  # Threshold for buffered writing to database
 CHECKPOINT_INTERVAL = 1000  # Interval for saving checkpoint data
+BATCH_SIZE = 20  # Batch size for processing files
+MAX_WORKERS = 20  # Maximum number of worker threads
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -54,44 +59,52 @@ def load_checkpoint(conn):
     checkpoint = {row[0] for row in rows}
     return checkpoint
 
-def hash_file(file_path):
+async def hash_file(file_path):
     if os.name == 'nt':  # Check if the OS is Windows
         if len(file_path) > 260:
             file_path = f'\\\\?\\{file_path}'
     
     md5_hash = hashlib.md5()
     try:
-        with open(file_path, "rb") as f:
-            for byte_block in iter(lambda: f.read(65536), b""):  # Read in larger chunks
+        async with aiofiles.open(file_path, "rb") as f:
+            while True:
+                byte_block = await f.read(65536)
+                if not byte_block:
+                    break
                 md5_hash.update(byte_block)
         return file_path, md5_hash.hexdigest()
     except Exception as e:
         logging.error("Error hashing file %s: %s", file_path, e)
         return file_path, None
 
+def process_files_batch(file_paths, conn):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tasks = [hash_file(file_path) for file_path in file_paths]
+    file_hashes = loop.run_until_complete(asyncio.gather(*tasks))
+    for file_hash in file_hashes:
+        if file_hash:
+            insert_file_hash(conn, *file_hash)
+
 def hash_files_in_folder(folder, conn):
-    buffer = []
     start_time = datetime.now()
     processed_count = 0
     checkpoint = load_checkpoint(conn)
+    file_paths = []
 
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            file_path = os.path.join(root, file)
-            if file_path not in checkpoint:
-                file_hash = hash_file(file_path)
-                if file_hash:
-                    buffer.append(file_hash)
-                    if len(buffer) >= BUFFER_SIZE_THRESHOLD:
-                        for file_hash in buffer:
-                            insert_file_hash(conn, *file_hash)
-                        buffer.clear()
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = []
+
+        for root, dirs, files in os.walk(folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file_path not in checkpoint:
+                    file_paths.append(file_path)
+                    if len(file_paths) >= BATCH_SIZE:
+                        futures.append(executor.submit(process_files_batch, file_paths, conn))
+                        file_paths = []
 
                     processed_count += 1
-                    if processed_count % CHECKPOINT_INTERVAL == 0:
-                        for file_hash in buffer:
-                            insert_file_hash(conn, *file_hash)
-                        buffer.clear()
 
                     # Calculate elapsed time and estimated remaining time
                     elapsed_time = datetime.now() - start_time
@@ -101,11 +114,13 @@ def hash_files_in_folder(folder, conn):
                     estimated_remaining_time = time_per_file * files_left
                     logging.info(f"Elapsed Time: {elapsed_time}, Estimated Remaining Time: {estimated_remaining_time}")
 
-    # Write remaining data in buffer to database
-    if buffer:
-        for file_hash in buffer:
-            insert_file_hash(conn, *file_hash)
-        buffer.clear()
+        # Process remaining files
+        if file_paths:
+            futures.append(executor.submit(process_files_batch, file_paths, conn))
+
+        # Wait for all futures to complete
+        for future in as_completed(futures):
+            future.result()
 
     return True
 
@@ -151,7 +166,6 @@ def main():
     monitor_thread.start()
 
     hash_files_in_folder(source_folder, conn)
-
     conn.close()
 
     # Export database to CSV
