@@ -1,70 +1,21 @@
 import os
 import hashlib
 import logging
-from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
-import psutil
-import sqlite3
-import csv
 import asyncio
 import aiofiles
+from concurrent.futures import ThreadPoolExecutor
+import psutil
+import csv
 
-BUFFER_SIZE_THRESHOLD = 10000  # Threshold for buffered writing to database
-CHECKPOINT_INTERVAL = 1000  # Interval for saving checkpoint data
-BATCH_SIZE = 20  # Batch size for processing files
+# Constants and configurations
+READ_CHUNK_SIZE = 1048576  # Read chunk size for network files (default: 1MB)
 MAX_WORKERS = 20  # Maximum number of worker threads
-READ_CHUNK_SIZE = 65536  # Read chunk size for network files (default: 64KB)
 
-# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
-
-def get_folder_path(prompt):
-    while True:
-        folder_path = input(prompt)
-        if os.path.isdir(folder_path):
-            return folder_path
-        else:
-            print("The folder does not exist. Please try again.")
-            logging.error("The folder does not exist: %s", folder_path)
-
-def get_output_path(prompt):
-    while True:
-        output_path = input(prompt)
-        if os.path.isdir(os.path.dirname(output_path)):
-            return output_path
-        else:
-            print("The output folder does not exist. Please try again.")
-            logging.error("The output folder does not exist: %s", os.path.dirname(output_path))
-
-def create_database(db_file):
-    conn = sqlite3.connect(db_file)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS file_hashes (
-                    file_path TEXT PRIMARY KEY,
-                    file_hash TEXT)''')
-    conn.commit()
-    return conn
-
-def insert_file_hash(conn, file_path, file_hash):
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO file_hashes (file_path, file_hash) VALUES (?, ?)", (file_path, file_hash))
-    conn.commit()
-
-def load_checkpoint(conn):
-    c = conn.cursor()
-    c.execute("SELECT file_path FROM file_hashes")
-    rows = c.fetchall()
-    checkpoint = {row[0] for row in rows}
-    return checkpoint
 
 async def hash_file(file_path, chunk_size=READ_CHUNK_SIZE):
-    if os.name == 'nt':  # Check if the OS is Windows
-        if len(file_path) > 260:
-            file_path = f'\\\\?\\{file_path}'
-    
+    """Hash file using MD5 algorithm."""
     md5_hash = hashlib.md5()
     try:
         async with aiofiles.open(file_path, "rb") as f:
@@ -78,107 +29,50 @@ async def hash_file(file_path, chunk_size=READ_CHUNK_SIZE):
         logging.error("Error hashing file %s: %s", file_path, e)
         return file_path, None
 
-def process_files_batch(file_paths, conn, chunk_size=READ_CHUNK_SIZE):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    tasks = [hash_file(file_path, chunk_size) for file_path in file_paths]
-    file_hashes = loop.run_until_complete(asyncio.gather(*tasks))
-    for file_hash in file_hashes:
-        if file_hash:
-            insert_file_hash(conn, *file_hash)
+async def process_files_batch(file_paths, chunk_size=READ_CHUNK_SIZE):
+    """Process batch of files and return their hashes."""
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        tasks = [loop.run_in_executor(executor, hash_file, file_path, chunk_size) for file_path in file_paths]
+        return await asyncio.gather(*tasks)
 
-def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
+async def hash_files_in_folder(folder, chunk_size=READ_CHUNK_SIZE):
+    """Hash files in specified folder asynchronously."""
     start_time = datetime.now()
     processed_count = 0
-    checkpoint = load_checkpoint(conn)
     file_paths = []
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = []
+    # Collect file paths in the folder
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_paths.append(file_path)
+            processed_count += 1
 
-        for root, dirs, files in os.walk(folder):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if file_path not in checkpoint:
-                    file_paths.append(file_path)
-                    if len(file_paths) >= BATCH_SIZE:
-                        futures.append(executor.submit(process_files_batch, file_paths, conn, chunk_size))
-                        file_paths = []
+    # Process files in batches asynchronously
+    results = await process_files_batch(file_paths, chunk_size)
 
-                    processed_count += 1
+    # Log elapsed time
+    elapsed_time = datetime.now() - start_time
+    logging.info(f"Elapsed Time: {elapsed_time}")
 
-                    # Calculate elapsed time and estimated remaining time
-                    elapsed_time = datetime.now() - start_time
-                    total_files = sum([len(files) for r, d, files in os.walk(folder)])
-                    files_left = total_files - processed_count
-                    time_per_file = elapsed_time / processed_count if processed_count > 0 else 0
-                    estimated_remaining_time = time_per_file * files_left
-                    logging.info(f"Elapsed Time: {elapsed_time}, Estimated Remaining Time: {estimated_remaining_time}")
-
-        # Process remaining files
-        if file_paths:
-            futures.append(executor.submit(process_files_batch, file_paths, conn, chunk_size))
-
-        # Wait for all futures to complete
-        for future in as_completed(futures):
-            future.result()
-
-    return True
-
-def export_to_csv(db_file, csv_file):
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-    cursor.execute("SELECT file_path, file_hash FROM file_hashes")
-    
-    with open(csv_file, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['file_path', 'file_hash'])  # Write the header
-        for row in cursor.fetchall():
-            writer.writerow(row)
-    
-    conn.close()
-    logging.info(f"Database contents have been exported to {csv_file}")
-
-def monitor_resources(interval=1):
-    try:
-        while True:
-            cpu_usage = psutil.cpu_percent(interval=interval)
-            memory_info = psutil.virtual_memory()
-            memory_usage = memory_info.percent
-            thread_count = threading.active_count()
-            net_io = psutil.net_io_counters()
-            bytes_sent = net_io.bytes_sent
-            bytes_recv = net_io.bytes_recv
-            logging.info(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}, Bytes Sent: {bytes_sent}, Bytes Received: {bytes_recv}")
-            print(f"CPU Usage: {cpu_usage}%, Memory Usage: {memory_usage}%, Active Threads: {thread_count}, Bytes Sent: {bytes_sent}, Bytes Received: {bytes_recv}")
-    except KeyboardInterrupt:
-        print("Monitoring stopped.")
+    return results
 
 def main():
+    """Main function to orchestrate file hashing process."""
     logging.info("Program started.")
     start_time = datetime.now()
 
-    source_folder = get_folder_path("Enter the source folder containing the files to hash: ")
-    output_db = get_output_path("Enter the full path for the output database file: ")
-    output_csv = get_output_path("Enter the full path for the output CSV file: ")
+    # Prompt user for input
+    source_folder = input("Enter the source folder containing the files to hash: ")
 
-    conn = create_database(output_db)
+    # Hash files in the folder asynchronously
+    asyncio.run(hash_files_in_folder(source_folder))
 
-    # Start resource monitoring in a separate thread
-    monitor_thread = threading.Thread(target=monitor_resources)
-    monitor_thread.daemon = True
-    monitor_thread.start()
-
-    hash_files_in_folder(source_folder, conn)
-    conn.close()
-
-    # Export database to CSV
-    export_to_csv(output_db, output_csv)
-
+    # Log processing time
     end_time = datetime.now()
     processing_time = end_time - start_time
     logging.info("Program finished. Processing time: %s", processing_time)
-    print(f"Hashes have been saved to {output_db} and exported to {output_csv}")
 
 if __name__ == "__main__":
     main()
