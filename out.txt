@@ -34,8 +34,19 @@ def load_checkpoint(conn):
     rows = c.fetchall()
     return {row[0] for row in rows}
 
+def calculate_remaining_time(elapsed_time, processed_count, total_count):
+    if processed_count == 0:
+        return timedelta(seconds=0)
+    average_time_per_file = elapsed_time / processed_count
+    remaining_files = total_count - processed_count
+    remaining_time = average_time_per_file * remaining_files
+    return remaining_time
+
 async def hash_file(file_path, chunk_size=READ_CHUNK_SIZE):
     """Hash file using MD5 algorithm."""
+    if os.name == 'nt' and len(file_path) > 260:
+        file_path = f'\\\\?\\{file_path}'
+
     md5_hash = hashlib.md5()
     try:
         async with aiofiles.open(file_path, "rb") as f:
@@ -51,18 +62,15 @@ async def hash_file(file_path, chunk_size=READ_CHUNK_SIZE):
 
 async def process_files_batch(file_paths, conn, chunk_size=READ_CHUNK_SIZE):
     """Process batch of files and return their hashes."""
-    loop = asyncio.get_event_loop()
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        tasks = [loop.run_in_executor(executor, hash_file, file_path, chunk_size) for file_path in file_paths]
-        results = await asyncio.gather(*tasks)
-    for file_path, file_hash in results:
-        if file_hash:
-            insert_file_hash(conn, file_path, file_hash)
+    tasks = [hash_file(file_path, chunk_size) for file_path in file_paths]
+    results = await asyncio.gather(*tasks)
+    for result in results:
+        if result and result[1]:  # Ensure that both file_path and file_hash are not None
+            insert_file_hash(conn, result[0], result[1])
 
 async def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
     """Hash files in specified folder asynchronously."""
     start_time = datetime.now()
-    processed_count = 0
     file_paths = []
 
     # Collect file paths in the folder
@@ -76,16 +84,16 @@ async def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
     file_paths = [fp for fp in file_paths if fp not in processed_files]
 
     total_files = len(file_paths)
-    start_time = datetime.now()
+    processed_count = 0
 
     # Process files in batches asynchronously
     for i in range(0, total_files, MAX_WORKERS):
         await process_files_batch(file_paths[i:i + MAX_WORKERS], conn, chunk_size)
         processed_count += len(file_paths[i:i + MAX_WORKERS])
-        
-        # Calculate elapsed and remaining time
+
+        # Calculate and log progress
         elapsed_time = datetime.now() - start_time
-        remaining_time = elapsed_time * (total_files - processed_count) / processed_count if processed_count else timedelta(0)
+        remaining_time = calculate_remaining_time(elapsed_time, processed_count, total_files)
         logging.info(f"Processed {processed_count}/{total_files}. Elapsed time: {elapsed_time}. Estimated remaining time: {remaining_time}")
 
     # Log final elapsed time
