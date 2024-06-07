@@ -1,11 +1,10 @@
 import os
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 import aiofiles
 from concurrent.futures import ThreadPoolExecutor
-import psutil
 import sqlite3
 
 # Constants and configurations
@@ -71,7 +70,6 @@ async def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
         for file in files:
             file_path = os.path.join(root, file)
             file_paths.append(file_path)
-            processed_count += 1
 
     # Load checkpoint to skip already processed files
     processed_files = load_checkpoint(conn)
@@ -83,10 +81,12 @@ async def hash_files_in_folder(folder, conn, chunk_size=READ_CHUNK_SIZE):
     # Process files in batches asynchronously
     for i in range(0, total_files, MAX_WORKERS):
         await process_files_batch(file_paths[i:i + MAX_WORKERS], conn, chunk_size)
-        elapsed_time = datetime.now() - start_time
-        remaining_time = elapsed_time * (total_files - processed_count) / processed_count if processed_count else 0
-        logging.info(f"Processed {processed_count}/{total_files}. Elapsed time: {elapsed_time}. Estimated remaining time: {remaining_time}")
         processed_count += len(file_paths[i:i + MAX_WORKERS])
+        
+        # Calculate elapsed and remaining time
+        elapsed_time = datetime.now() - start_time
+        remaining_time = elapsed_time * (total_files - processed_count) / processed_count if processed_count else timedelta(0)
+        logging.info(f"Processed {processed_count}/{total_files}. Elapsed time: {elapsed_time}. Estimated remaining time: {remaining_time}")
 
     # Log final elapsed time
     elapsed_time = datetime.now() - start_time
