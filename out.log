@@ -245,3 +245,106 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+import csv
+import os
+
+def read_hashes_from_csv(csv_file):
+    """Read file hashes from a CSV file and return as a dictionary."""
+    file_hashes = {}
+    try:
+        with open(csv_file, mode='r', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                file_hashes[row['file_path']] = row['file_hash']
+    except Exception as e:
+        print(f"Error reading {csv_file}: {e}")
+    return file_hashes
+
+def convert_to_relative_paths(file_hashes, base_path):
+    """Convert file paths in the dictionary to relative paths."""
+    relative_file_hashes = {}
+    for file_path, file_hash in file_hashes.items():
+        relative_path = os.path.relpath(file_path, base_path)
+        relative_file_hashes[relative_path] = file_hash
+    return relative_file_hashes
+
+def compare_hashes(source_hashes, destination_hashes):
+    """Compare two dictionaries of file hashes and return differences."""
+    missing_in_destination = []
+    different_hashes = []
+    
+    # Check for files missing in destination or with different hashes
+    for file_path, src_hash in source_hashes.items():
+        dest_hash = destination_hashes.get(file_path)
+        if dest_hash is None:
+            missing_in_destination.append(file_path)
+        elif dest_hash != src_hash:
+            different_hashes.append((file_path, src_hash, dest_hash))
+    
+    # Check for files present in destination but missing in source
+    extra_in_destination = [file_path for file_path in destination_hashes if file_path not in source_hashes]
+
+    return missing_in_destination, different_hashes, extra_in_destination
+
+def save_comparison_results(missing_in_destination, different_hashes, extra_in_destination, output_csv):
+    """Save the comparison results to a CSV file."""
+    try:
+        with open(output_csv, mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['File Path', 'Source Hash', 'Destination Hash', 'Status'])
+
+            for file_path in missing_in_destination:
+                writer.writerow([file_path, '', '', 'Missing in Destination'])
+            
+            for file_path, src_hash, dest_hash in different_hashes:
+                writer.writerow([file_path, src_hash, dest_hash, 'Different Hashes'])
+            
+            for file_path in extra_in_destination:
+                writer.writerow([file_path, '', '', 'Extra in Destination'])
+        
+        print(f"Comparison results have been saved to {output_csv}")
+    except Exception as e:
+        print(f"Error saving comparison results: {e}")
+
+def main():
+    source_csv = input("Enter the path to the source CSV file: ")
+    destination_csv = input("Enter the path to the destination CSV file: ")
+    output_csv = input("Enter the path to save the comparison results CSV file: ")
+    source_base_path = input("Enter the base path for the source files: ")
+    destination_base_path = input("Enter the base path for the destination files: ")
+
+    source_hashes = read_hashes_from_csv(source_csv)
+    destination_hashes = read_hashes_from_csv(destination_csv)
+    
+    # Convert to relative paths
+    source_hashes = convert_to_relative_paths(source_hashes, source_base_path)
+    destination_hashes = convert_to_relative_paths(destination_hashes, destination_base_path)
+    
+    missing_in_destination, different_hashes, extra_in_destination = compare_hashes(source_hashes, destination_hashes)
+    
+    if missing_in_destination:
+        print("Files missing in destination:")
+        for file_path in missing_in_destination:
+            print(file_path)
+    
+    if different_hashes:
+        print("\nFiles with different hashes:")
+        for file_path, src_hash, dest_hash in different_hashes:
+            print(f"{file_path}\n Source Hash: {src_hash}\n Destination Hash: {dest_hash}")
+    
+    if extra_in_destination:
+        print("\nExtra files in destination:")
+        for file_path in extra_in_destination:
+            print(file_path)
+    
+    if not missing_in_destination and not different_hashes and not extra_in_destination:
+        print("The source and destination hashes are identical.")
+
+    # Save results to CSV
+    save_comparison_results(missing_in_destination, different_hashes, extra_in_destination, output_csv)
+
+if __name__ == "__main__":
+    main()
+
+
